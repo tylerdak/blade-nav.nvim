@@ -409,6 +409,7 @@ end
 local function laravel_component(component_name)
   return {
     "resources/views/components/" .. component_name .. ".blade.php",
+    "templates/components/" .. component_name .. ".blade.php",
     "app/View/Components/" .. capitalize(component_name) .. ".php",
   }
 end
@@ -552,18 +553,25 @@ end
 local function gf_file_or_class(prefix, component_name)
   component_name = string.gsub(component_name, "%.", "/")
 
-  local file_path, class_path = unpack(get_paths(prefix, component_name))
+  local file_path, class_path, alt_file_path = unpack(get_paths(prefix, component_name))
   local choices = {}
   local file_that_exists
+  local dir_path = file_path:gsub("%.blade%.php$", "")
 
   if vim.fn.filereadable(file_path) == 1 then
     table.insert(choices, "1: " .. file_path)
     file_that_exists = file_path
+  elseif vim.fn.isdirectory(dir_path) ~= 0 then
+    vim.cmd("edit " .. dir_path .. "/index.blade.php")
+    return true
   else
-    local dir_path = file_path:gsub("%.blade%.php$", "")
-    if vim.fn.isdirectory(dir_path) ~= 0 then
-      vim.cmd("edit " .. dir_path .. "/index.blade.php")
-      return true
+    local alt_dir_path = file_path:gsub("%.blade%.php$", "")
+    if vim.fn.filereadable(alt_file_path) == 1 then
+        table.insert(choices, "1. " .. alt_file_path)
+        file_that_exists = alt_file_path
+    elseif vim.fn.isdirectory(alt_dir_path) ~= 0 then
+        vim.cmd("edit " .. alt_dir_path .. "/index.blade.php")
+        return true
     end
   end
 
