@@ -257,22 +257,50 @@ local function find_views_names(path, exclude_dirs)
   return views
 end
 
+--- Get primary view folder
+---
+--- Set with vim.g.blade_nav.laravel_view_paths
+---
+--- @return string
+local function primary_view_folder()
+  local view_folder = "resources/views"
+  if (vim.g.blade_nav.laravel_view_paths and vim.g.blade_nav.laravel_view_paths[1]) then
+    view_folder = vim.g.blade_nav.laravel_view_paths[1]
+  end
+  return view_folder
+end
+
+--- Get primary components folder
+---
+--- Set with vim.g.blade_nav.laravel_components
+--- Falls back to primary_view_folder() + "/components" if laravel_components isn't set
+---
+--- @see primary_view_folder
+--- @return string
+local function primary_components_folder()
+  if (vim.g.blade_nav.laravel_components and vim.g.blade_nav.laravel_components[1]) then
+    return vim.g.blade_nav.laravel_components[1]
+  end
+  return primary_view_folder() .. '/components'
+end
+
 --- Find all components view
 --- @return table
 local function find_components()
-  return find_views_names("resources/views/components")
+  return find_views_names(primary_components_folder())
 end
 
 --- Find all livewire views
 --- @return table
 local function find_livewire()
-  return find_views_names("resources/views/livewire")
+  return find_views_names(primary_view_folder() .. "/livewire")
 end
 
---- Find all views excliding livewire abd Laravel components
+--- Find all views excluding livewire and Laravel components
 --- @return table
 local function find_views()
-  return find_views_names("resources/views", { "resources/views/livewire", "resources/views/components" })
+  local view_folder = primary_view_folder()
+  return find_views_names(view_folder, { view_folder .. "/livewire", view_folder .. "/components" })
 end
 
 -- Find all routes
@@ -295,7 +323,7 @@ M.get_view_names = function(input, not_include_closing_tag)
     { pattern = "@include%(",    tpl = "@include('%s')",           ft = "blade",            fn = find_views },
     { pattern = "Route::view%(", tpl = "Route::view('uri', '%s')", ft = "php",              fn = find_views },
     { pattern = "View::make%(",  tpl = "View::make('%s')",         ft = "php",              fn = find_views },
-    { pattern = "view%(",        tpl = "view('%s')",               ft = "php",              fn = find_views },
+    { pattern = "view%(",        tpl = "view('%s')",               ft = { "blade", "php" }, fn = find_views },
   }
 
   local index
@@ -347,7 +375,6 @@ M.get_keyword_pattern = function()
       return not M.in_table(keyword, { "route", "to_route" })
     end, functions_keywords)
   end
-  
   local functions_pattern = [[\(]] .. table.concat(functions_keywords, "\\|") .. [[\)\(('\)*\w*]]
   local components_pattern = [[\(]] .. table.concat(components_keywords, "\\|") .. [[\)\w*]]
 
