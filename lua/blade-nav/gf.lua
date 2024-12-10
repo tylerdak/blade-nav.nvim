@@ -462,6 +462,23 @@ local function get_component_name_and_prefix()
   end
 end
 
+local function substituteProjectPaths(options)
+  -- default options
+  setmetatable(options, { __index = { subdir = "" } })
+  local paths, component_name, subdir = -- apply options to local vars
+      options[1] or options.paths,
+      options[2] or options.component_name,
+      options[3] or options.subdir
+
+  if vim.g.blade_nav and vim.g.blade_nav.laravel_view_paths then
+    for _, path in ipairs(vim.g.blade_nav.laravel_view_paths) do
+      paths.components = { path .. subdir .. "/" .. component_name .. ".blade.php" }
+    end
+  end
+
+  return paths
+end
+
 local function laravel_component(component_name)
   local paths = {
     components = { "resources/views/components/" .. component_name .. ".blade.php" },
@@ -470,9 +487,12 @@ local function laravel_component(component_name)
 
   if vim.g.blade_nav and vim.g.blade_nav.laravel_components then
     for _, path in ipairs(vim.g.blade_nav.laravel_components) do
-      table.insert(paths.components, #paths.components + 1, path .. "/" .. component_name .. ".blade.php")
+      paths.components = { path .. "/" .. component_name .. ".blade.php" }
     end
   end
+
+  paths = substituteProjectPaths({ paths, component_name, '/components' })
+
   if vim.g.blade_nav and vim.g.blade_nav.laravel_classes then
     for _, path in ipairs(vim.g.blade_nav.laravel_classes) do
       table.insert(paths.components, #paths.components + 1, path .. "/" .. capitalize(component_name) .. ".php")
@@ -484,10 +504,14 @@ end
 
 local function laravel_view(component_name)
   component_name = component_name:gsub("['()%)]", "")
-  return {
+  local paths = {
     components = { "resources/views/" .. component_name .. ".blade.php" },
     class = { nil },
   }
+
+  paths = substituteProjectPaths({ paths, component_name })
+
+  return paths
 end
 
 local function livewire_component(component_name)

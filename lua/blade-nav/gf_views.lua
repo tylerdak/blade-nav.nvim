@@ -81,7 +81,12 @@ function M.gf(view)
     end
   end
 
-  vim.cmd("edit " .. root_dir:gsub("[\r\n]", "") .. "/resources/views/" .. view)
+  local primary_view_path = "resources/views"
+  if (vim.g.blade_nav.laravel_view_paths and vim.g.blade_nav.laravel_view_paths[1]) then
+    primary_view_path = vim.g.blade_nav.laravel_view_paths[1]
+  end
+
+  vim.cmd("edit " .. root_dir:gsub("[\r\n]", "") .. "/" .. primary_view_path .. "/" .. view)
 
   return true
 end
