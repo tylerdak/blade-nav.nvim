@@ -129,6 +129,17 @@ local function check_setup()
     )
   end
 
+  if vim.g.blade_nav and vim.g.blade_nav.laravel_view_paths then
+    local s_or_not = #vim.g.blade_nav.laravel_view_paths > 1 and "s" or ""
+    ok(
+      "Overriding search path"
+      .. s_or_not
+      .. " for Laravel views "
+      .. table.concat(vim.g.blade_nav.laravel_view_paths, '", "')
+      .. '"'
+    )
+  end
+
   if vim.g.blade_nav and vim.g.blade_nav.include_routes then
     if type(vim.g.blade_nav.include_routes) ~= "boolean" then
       warn("Include routes should be boolean")
