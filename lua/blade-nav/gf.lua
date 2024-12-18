@@ -429,7 +429,7 @@ local function get_component_name_and_prefix()
   end
 end
 
-local function substituteProjectPaths(options)
+local function insertProjectPaths(options)
   -- default options
   setmetatable(options, { __index = { subdir = "" } })
   local paths, component_name, subdir = -- apply options to local vars
@@ -439,7 +439,7 @@ local function substituteProjectPaths(options)
 
   if vim.g.blade_nav and vim.g.blade_nav.laravel_view_paths then
     for _, path in ipairs(vim.g.blade_nav.laravel_view_paths) do
-      paths.components = { path .. subdir .. "/" .. component_name .. ".blade.php" }
+      table.insert(paths.components, path .. subdir .. "/" .. component_name .. ".blade.php")
     end
   end
 
@@ -452,17 +452,23 @@ local function laravel_component(component_name)
     class = { "app/View/Components/" .. capitalize(component_name) .. ".php" },
   }
 
+  if vim.g.blade_nav and (vim.g.blade_nav.laravel_components or vim.g.blade_nav.laravel_view_paths) then
+    paths.components = {} -- Replace default if either components or view paths are filled
+  end
+
+  -- insert component paths
   if vim.g.blade_nav and vim.g.blade_nav.laravel_components then
     for _, path in ipairs(vim.g.blade_nav.laravel_components) do
-      paths.components = { path .. "/" .. component_name .. ".blade.php" }
+      table.insert(paths.components, path .. "/" .. component_name .. ".blade.php")
     end
   end
 
-  paths = substituteProjectPaths({ paths, component_name, '/components' })
+  -- insert view paths
+  paths = insertProjectPaths({ paths, component_name, '/components' })
 
   if vim.g.blade_nav and vim.g.blade_nav.laravel_classes then
     for _, path in ipairs(vim.g.blade_nav.laravel_classes) do
-      table.insert(paths.components, #paths.components + 1, path .. "/" .. capitalize(component_name) .. ".php")
+      table.insert(paths.class, path .. "/" .. utils.kebab_to_pascal(component_name) .. ".php")
     end
   end
 
@@ -476,7 +482,7 @@ local function laravel_view(component_name)
     class = { nil },
   }
 
-  paths = substituteProjectPaths({ paths, component_name })
+  paths = insertProjectPaths({ paths, component_name })
 
   return paths
 end
