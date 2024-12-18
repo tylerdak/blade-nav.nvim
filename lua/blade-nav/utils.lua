@@ -55,6 +55,18 @@ M.execute_command_silent = function(cmd)
   return obj.stdout, true
 end
 
+function table:map(callback)
+  local mapped = {}
+  for key, value in pairs(self) do
+    mapped[key] = callback(value)
+  end
+  return mapped
+end
+
+local function T(tbl)
+  return setmetatable(tbl, { __index = table })
+end
+
 --- find files using `fd` or `find`
 --- @param path string
 --- @param extension string
@@ -245,25 +257,34 @@ M.get_route_names = function()
 end
 
 --- Find all views names
---- @param path string
+--- @param input string|table
 --- @param exclude_dirs? table
 --- @return table
-local function find_views_names(path, exclude_dirs)
-  local result = find_files(path, "blade.php", exclude_dirs)
+local function find_views_names(input, exclude_dirs)
+  local paths = {}
 
-  if not result or result == "" then
-    return {}
+  if type(input) == "string" then
+    paths = { input }
+  elseif type(input) == "table" then
+    paths = input
   end
 
   local views = {}
-  for filename in result:gmatch("[^\r\n]+") do
-    local view = filename:match(path .. "(.+)")
-    if view then
-      view = view:gsub("^/", ""):gsub("%.blade%.php$", ""):gsub("/", ".")
-      table.insert(views, view)
-    end
-  end
 
+  for _, path in ipairs(paths) do
+    local result = find_files(path, "blade.php", exclude_dirs)
+
+    if not result or result == "" then goto continue end
+
+    for filename in result:gmatch("[^\r\n]+") do
+      local view = filename:match(path .. "(.+)")
+      if view then
+        view = view:gsub("^/", ""):gsub("%.blade%.php$", ""):gsub("/", ".")
+        table.insert(views, view)
+      end
+    end
+    ::continue::
+  end
   return views
 end
 
@@ -271,13 +292,18 @@ end
 ---
 --- Set with vim.g.blade_nav.laravel_view_paths
 ---
---- @return string
-local function primary_view_folder()
-  local view_folder = "resources/views"
-  if (vim.g.blade_nav.laravel_view_paths and vim.g.blade_nav.laravel_view_paths[1]) then
-    view_folder = vim.g.blade_nav.laravel_view_paths[1]
+--- @return table
+local function get_view_folders()
+  local view_folders = { "resources/views" }
+  if (vim.g.blade_nav and vim.g.blade_nav.laravel_view_paths) then
+    local given_paths = vim.g.blade_nav.laravel_view_paths
+    if (type(given_paths) == "string") then
+      return T({ given_paths })
+    elseif type(given_paths) == "table" then
+      view_folders = vim.g.blade_nav.laravel_view_paths
+    end
   end
-  return view_folder
+  return T(view_folders)
 end
 
 --- Get primary components folder
@@ -286,31 +312,59 @@ end
 --- Falls back to primary_view_folder() + "/components" if laravel_components isn't set
 ---
 --- @see primary_view_folder
---- @return string
-local function primary_components_folder()
-  if (vim.g.blade_nav.laravel_components and vim.g.blade_nav.laravel_components[1]) then
-    return vim.g.blade_nav.laravel_components[1]
+--- @return table
+local function get_component_folders(input)
+  local component_folders
+  if (vim.g.blade_nav and vim.g.blade_nav.laravel_components) then
+    local given_paths = vim.g.blade_nav.laravel_components
+    if (type(given_paths) == "string") then
+      return { given_paths }
+    elseif type(given_paths) == "table" then
+      component_folders = vim.g.blade_nav.laravel_components
+      return component_folders
+    end
   end
-  return primary_view_folder() .. '/components'
+
+  -- fallback - use view folders and add "/components"
+  local view_folders
+  if (type(input) == "table") then
+    view_folders = input
+  else
+    view_folders = get_view_folders()
+  end
+  return view_folders:map(function(path) return path .. "/components" end)
+end
+
+local function get_livewire_folders(input)
+  local view_folders
+  if (type(input) == "table") then
+    view_folders = input
+  else
+    view_folders = get_view_folders()
+  end
+  return view_folders:map(function(path) return path .. "/livewire" end)
 end
 
 --- Find all components view
 --- @return table
 local function find_components()
-  return find_views_names(primary_components_folder())
+  return find_views_names(get_component_folders())
 end
 
 --- Find all livewire views
 --- @return table
 local function find_livewire()
-  return find_views_names(primary_view_folder() .. "/livewire")
+  return find_views_names(get_livewire_folders())
 end
 
 --- Find all views excluding livewire and Laravel components
 --- @return table
 local function find_views()
-  local view_folder = primary_view_folder()
-  return find_views_names(view_folder, { view_folder .. "/livewire", view_folder .. "/components" })
+  local view_folders = get_view_folders()
+  return find_views_names(view_folders, {
+    unpack(get_livewire_folders(view_folders)),
+    unpack(get_component_folders(view_folders)),
+  })
 end
 
 -- Find all routes
