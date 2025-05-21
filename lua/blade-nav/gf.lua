@@ -43,6 +43,11 @@ local function extract_prefix_name(text)
     "(%S+)%s*%(%s*%[%s*['\"]([%w%.%-%_]+)['\"]%s*=>",
   }
 
+  for prefix, namespace in pairs(vim.g.blade_nav.custom_component_namespaces) do
+    local pattern = "<(" .. (prefix or namespace.prefix) .. ")([%w%-%.%_]+)%s*[^>]*%s*/?>?"
+    table.insert(patterns, pattern)
+  end
+
   for _, pattern in ipairs(patterns) do
     local name, param1, param2, param3 = text:match(pattern)
     if param2 == "::" then
@@ -520,6 +525,19 @@ local function laravel_view(component_name)
   return paths
 end
 
+local function custom_namespace_view(prefix, component_name)
+  component_name = component_name:gsub("['()%)]", "")
+
+  local namespace_path = vim.g.blade_nav.custom_component_namespaces[prefix].path
+
+  local paths = {
+    components = { namespace_path .. "/" .. component_name .. ".blade.php" },
+    class = { nil },
+  }
+
+  return paths
+end
+
 local function livewire_component(component_name)
   component_name = component_name:gsub("['()%)]", "")
   return {
@@ -612,7 +630,13 @@ local function get_paths(prefix, component_name)
     ["package"] = package_component,
   }
 
-  local paths = prefix_map[prefix](component_name)
+  local pathfinder = prefix_map[prefix]
+  local paths
+  if pathfinder ~= nil then
+    paths = pathfinder(component_name)
+  else
+    paths = custom_namespace_view(prefix, component_name)
+  end
   return paths.components, paths.class
 end
 
