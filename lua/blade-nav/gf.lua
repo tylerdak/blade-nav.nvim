@@ -35,17 +35,17 @@ end
 --- @return string|nil, string|nil
 local function extract_prefix_name(text)
   local patterns = {
-    "(%S+)%s*%(%s*['\"]([%w%.%-%_]+)['\"]%s*,%s*['\"]([%w%.%-%_]+)['\"]%s*%)",
-    "@*(%S+)%s*%(%s*['\"]([%w%.%-%_]+)['\"]",
     "<(x%-)([%w%-%_]+)(::)([%w%-%.%_]+)%s*[^>]*%s*/?>?",
     "<(x%-)([%w%-%.%_]+)%s*[^>]*%s*/?>?",
+    "(%S+)%s*%(%s*['\"]([%w%.%-%_]+)['\"]%s*,%s*['\"]([%w%.%-%_]+)['\"]%s*%)",
+    "@*(%S+)%s*%(%s*['\"]([%w%.%-%_]+)['\"]",
     "<(livewire)%:([%w%-%.]+)%s*[^>]*%s*/?>?",
     "(%S+)%s*%(%s*%[%s*['\"]([%w%.%-%_]+)['\"]%s*=>",
   }
 
   for prefix, namespace in pairs(vim.g.blade_nav.custom_component_namespaces) do
-    local pattern = "<(" .. (prefix or namespace.prefix) .. ")([%w%-%.%_]+)%s*[^>]*%s*/?>?"
-    table.insert(patterns, pattern)
+    local pattern = "<(" .. (namespace.prefix or prefix) .. ")([%w%-%.%_]+)%s*[^>]*%s*/?>?"
+    table.insert(patterns, 1, pattern)
   end
 
   for _, pattern in ipairs(patterns) do
@@ -528,10 +528,14 @@ end
 local function custom_namespace_view(prefix, component_name)
   component_name = component_name:gsub("['()%)]", "")
 
-  local namespace_path = vim.g.blade_nav.custom_component_namespaces[prefix].path
+  local namespace = vim.g.blade_nav.custom_component_namespaces[prefix]
+
+  if not namespace or not component_name or not prefix then
+    return { components = {}, class = {} }
+  end
 
   local paths = {
-    components = { namespace_path .. "/" .. component_name .. ".blade.php" },
+    components = { namespace.path .. "/" .. component_name .. ".blade.php" },
     class = { nil },
   }
 
