@@ -43,9 +43,11 @@ local function extract_prefix_name(text)
     "(%S+)%s*%(%s*%[%s*['\"]([%w%.%-%_]+)['\"]%s*=>",
   }
 
-  for prefix, namespace in pairs(vim.g.blade_nav.custom_component_namespaces) do
-    local pattern = "<(" .. (namespace.prefix or prefix) .. ")([%w%-%.%_]+)%s*[^>]*%s*/?>?"
-    table.insert(patterns, 1, pattern)
+  if vim.g.blade_nav and vim.g.blade_nav.custom_component_namespaces then
+    for prefix, namespace in pairs(vim.g.blade_nav.custom_component_namespaces) do
+      local pattern = "<(" .. (namespace.prefix or prefix) .. ")([%w%-%.%_]+)%s*[^>]*%s*/?>?"
+      table.insert(patterns, 1, pattern)
+    end
   end
 
   for _, pattern in ipairs(patterns) do
